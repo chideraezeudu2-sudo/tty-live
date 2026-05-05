@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: tty-live-backend
+    env: node
+    buildCommand: npm install && npm run build:backend
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://ghpmcjozeubrmiuzyfey.supabase.co
+      - key: STRIPE_BASIC_PRICE_ID
+        value: price_1TTYqGCBOoQTb0Npwes7Qbia
+      - key: STRIPE_PRO_PRICE_ID
+        value: price_1TTYqLCBOoQTb0NpsP3FnfNP

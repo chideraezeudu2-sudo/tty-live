@@ -1,0 +1,6 @@
+{
+  "name": "tty.live",
+  "description": "Share your terminal live with a simple link. A lightweight developer tool for real-time terminal streaming with high clarity and privacy shielding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
