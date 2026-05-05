@@ -21,7 +21,21 @@ import {
   ChevronRight,
   ChevronLeft
 } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
+import { createClient } from '@supabase/supabase-js';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const supabaseClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
+
+async function apiFetch(path: string, opts: RequestInit = {}) {
+  const token = localStorage.getItem('tty_token');
+  return fetch(`${SERVER_URL}${path}`, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '', ...opts.headers },
+  });
+}
 import { format } from 'date-fns';
 import { 
   BarChart, 
@@ -191,7 +205,7 @@ const SessionRow = ({ session }: { session: Session }) => {
   );
 };
 
-const ViewerPage = ({ sessionId, socket, onBack }: { sessionId: string, socket: Socket | null, onBack: () => void }) => {
+const ViewerPage = ({ sessionId, onBack }: { sessionId: string, onBack: () => void }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const [viewerCount, setViewerCount] = useState(0);
 
@@ -225,9 +239,11 @@ const ViewerPage = ({ sessionId, socket, onBack }: { sessionId: string, socket: 
       setViewerCount(count);
     };
 
-    socket?.emit('join-session', sessionId);
-    socket?.on('terminal-output', handleData);
-    socket?.on('viewer-count', handleViewerCount);
+    // Subscribe to Supabase Realtime channel for this session
+    const channel = supabaseClient.channel(`session:${sessionId}`)
+      .on('broadcast', { event: 'terminal_data' }, ({ payload }) => handleData(payload.data))
+      .on('broadcast', { event: 'viewer_count' }, ({ payload }) => handleViewerCount(payload.count))
+      .subscribe();
 
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
@@ -235,9 +251,7 @@ const ViewerPage = ({ sessionId, socket, onBack }: { sessionId: string, socket: 
     resizeObserver.observe(terminalRef.current);
 
     return () => {
-      socket?.emit('leave-session', sessionId);
-      socket?.off('terminal-output', handleData);
-      socket?.off('viewer-count', handleViewerCount);
+      supabaseClient.channel(`session:${sessionId}`).unsubscribe();
       resizeObserver.disconnect();
       term.dispose();
     };
@@ -358,7 +372,7 @@ const StatCard = ({ label, value, trend, icon: Icon }: any) => (
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const realtimeRef = useRef<any>(null);
   const [stats, setStats] = useState<Stats>({ totalSessions: 0, totalMinutes: 0, totalViewers: 0 });
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -383,13 +397,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
+    // Auth from URL params (after GitHub OAuth redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUsername = urlParams.get('username');
+    const urlAvatar = urlParams.get('avatar');
+    if (urlToken) {
+      localStorage.setItem('tty_token', urlToken);
+      if (urlUsername) localStorage.setItem('tty_username', urlUsername);
+      if (urlAvatar) localStorage.setItem('tty_avatar', decodeURIComponent(urlAvatar));
+      window.history.replaceState({}, '', '/');
+    }
 
     fetchStats();
     fetchSessions();
 
-    newSocket.on('session-started', (session) => {
+    // Load existing data via REST
+    apiFetch('/api/stats').then(r => r.json()).then(setStats).catch(console.error);
+    apiFetch('/api/sessions').then(r => r.json()).then(setSessions).catch(console.error);
+    apiFetch('/api/subscription').then(r => r.json()).then(setSub).catch(console.error);
+
+    const bogusListener = (() => {
       setActiveSession(session);
       fetchSessions();
       // Simulate terminal output
@@ -408,7 +436,7 @@ export default function App() {
     });
 
     return () => {
-      newSocket.close();
+      if (realtimeRef.current) realtimeRef.current.unsubscribe();
     };
   }, []);
 
@@ -458,12 +486,23 @@ export default function App() {
   };
 
   const startSession = () => {
-    socket?.emit('start-session', { name: `Live Debugging ${new Date().toLocaleTimeString()}` });
+    apiFetch('/api/sessions', { method: 'POST', body: JSON.stringify({ name: `Session ${new Date().toLocaleTimeString()}` }) })
+      .then(r => r.json())
+      .then(session => {
+        setActiveSession(session);
+        setSessionLink(session.viewerUrl);
+        // Poll viewer count via Supabase Realtime
+        const ch = supabaseClient.channel(`session:${session.id}`)
+          .on('broadcast', { event: 'viewer_count' }, ({ payload }) => setViewerCount(payload.count))
+          .subscribe();
+        realtimeRef.current = ch;
+      });
   };
 
   const stopSession = () => {
     if (activeSession) {
-      socket?.emit('stop-session', activeSession.id);
+      apiFetch(`/api/sessions/${activeSession.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
+      if (realtimeRef.current) { realtimeRef.current.unsubscribe(); realtimeRef.current = null; }
     }
   };
 
@@ -477,7 +516,7 @@ export default function App() {
   };
 
   if (viewingSessionId) {
-    return <ViewerPage sessionId={viewingSessionId} socket={socket} onBack={() => {
+    return <ViewerPage sessionId={viewingSessionId} onBack={() => {
       window.history.pushState({}, '', '/');
       setViewingSessionId(null);
     }} />;
