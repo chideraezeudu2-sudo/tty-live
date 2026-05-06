@@ -1,9 +1,0 @@
-name = "tty-live-worker"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
-
-[vars]
-FRONTEND_URL = "https://tty-live.pages.dev"
-VIEWER_URL = "https://tty-live-viewer.pages.dev"
-SERVER_URL = "https://tty-live-worker.workers.dev"
