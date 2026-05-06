@@ -58,9 +58,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { Terminal as XTerm } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import '@xterm/xterm/css/xterm.css';
+// xterm removed - using lightweight ANSI renderer for mobile compatibility
 
 // --- Types ---
 type Tab = 'home' | 'sessions' | 'settings' | 'billing' | 'viewers';
@@ -216,56 +214,29 @@ const SessionRow = ({ session }: { session: Session }) => {
 };
 
 const ViewerPage = ({ sessionId, onBack }: { sessionId: string, onBack: () => void }) => {
-  const terminalRef = useRef<HTMLDivElement>(null);
   const [viewerCount, setViewerCount] = useState(0);
+  const [lines, setLines] = useState<string[]>(['\x1b[36mConnecting to session...\x1b[0m']);
+  const terminalRef = useRef<HTMLDivElement>(null);
+
+  // Strip ANSI escape codes for simple display
+  const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*[mGKHF]/g, '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 
   useEffect(() => {
-    if (!terminalRef.current) return;
-
-    const term = new XTerm({
-      cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'JetBrains Mono, Fira Code, monospace',
-      theme: {
-        background: '#0a0a0a',
-        foreground: '#ffffff',
-        selectionBackground: 'rgba(255, 255, 255, 0.3)',
-      },
-      allowProposedApi: true
-    });
-
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-    fitAddon.fit();
-
-    term.writeln('\x1b[36mConnecting to session: ' + sessionId + '...\x1b[0m');
-
-    const handleData = (data: string) => {
-      term.write(data);
-    };
-
-    const handleViewerCount = (count: number) => {
-      setViewerCount(count);
-    };
-
-    // Subscribe to Supabase Realtime channel for this session
     const channel = supabaseClient.channel(`session:${sessionId}`)
-      .on('broadcast', { event: 'terminal_data' }, ({ payload }) => handleData(payload.data))
-      .on('broadcast', { event: 'viewer_count' }, ({ payload }) => handleViewerCount(payload.count))
+      .on('broadcast', { event: 'terminal_data' }, ({ payload }) => {
+        const cleaned = stripAnsi(payload.data);
+        const newLines = cleaned.split('\n').filter((l: string) => l.trim());
+        if (newLines.length) setLines(prev => [...prev.slice(-500), ...newLines]);
+        // Auto scroll
+        setTimeout(() => {
+          if (terminalRef.current) terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }, 50);
+      })
+      .on('broadcast', { event: 'viewer_count' }, ({ payload }) => setViewerCount(payload.count))
       .subscribe();
 
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-    });
-    resizeObserver.observe(terminalRef.current);
-
-    return () => {
-      supabaseClient.channel(`session:${sessionId}`).unsubscribe();
-      resizeObserver.disconnect();
-      term.dispose();
-    };
-  }, [sessionId, socket]);
+    return () => { channel.unsubscribe(); };
+  }, [sessionId]);
 
   return (
     <div className="fixed inset-0 bg-void-black z-50 flex flex-col">
@@ -281,21 +252,16 @@ const ViewerPage = ({ sessionId, onBack }: { sessionId: string, onBack: () => vo
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs text-ash-gray font-medium bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-             <Users className="w-3.5 h-3.5" />
-             {viewerCount} Viewers
+            <Users className="w-3.5 h-3.5" />
+            {viewerCount} Viewers
           </div>
-          <button className="btn-primary py-1.5 px-4 text-xs">Share Terminal</button>
         </div>
       </header>
-      <div className="flex-1 p-6 flex flex-col min-h-0 bg-radial-[at_50%_-20%] from-coal to-void-black">
-        <div className="flex-1 bg-[#0a0a0a] rounded-2xl border border-white/5 overflow-hidden shadow-2xl relative p-4 group">
-          <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-             <button className="p-2 bg-white/10 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors text-canvas-white">
-                <Copy className="w-4 h-4" />
-             </button>
-          </div>
-          <div ref={terminalRef} className="w-full h-full" />
-        </div>
+      <div ref={terminalRef} className="flex-1 p-4 font-mono text-sm text-green-400 overflow-y-auto bg-[#0a0a0a] leading-relaxed">
+        {lines.map((line, i) => (
+          <div key={i} className="whitespace-pre-wrap break-all opacity-90 hover:opacity-100">{stripAnsi(line)}</div>
+        ))}
+        <div className="w-2 h-4 bg-green-400 inline-block animate-pulse ml-1" />
       </div>
     </div>
   );
