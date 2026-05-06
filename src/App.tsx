@@ -377,6 +377,7 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+  const [sub, setSub] = useState<any>({ plan: 'trial', status: 'active' });
 
   // Check URL for viewer mode
   useEffect(() => {
@@ -408,61 +409,16 @@ export default function App() {
       window.history.replaceState({}, '', '/');
     }
 
-    fetchStats();
-    fetchSessions();
-
-    // Load existing data via REST
+    // Load data via REST API
     apiFetch('/api/stats').then(r => r.json()).then(setStats).catch(console.error);
     apiFetch('/api/sessions').then(r => r.json()).then(setSessions).catch(console.error);
     apiFetch('/api/subscription').then(r => r.json()).then(setSub).catch(console.error);
-
-    const bogusListener = (() => {
-      setActiveSession(session);
-      fetchSessions();
-      // Simulate terminal output
-      simulateTerminalTraffic(newSocket, session.id);
-    });
-
-    newSocket.on('session-stopped', (session) => {
-      setActiveSession(null);
-      fetchSessions();
-    });
-
-    newSocket.on('viewer-count', (count) => {
-      if (activeSession) {
-        setActiveSession(prev => prev ? { ...prev, viewers: count } : null);
-      }
-    });
 
     return () => {
       if (realtimeRef.current) realtimeRef.current.unsubscribe();
     };
   }, []);
 
-  const simulateTerminalTraffic = (socket: Socket, sessionId: string) => {
-    const lines = [
-      '\x1b[32m$ npm start\x1b[0m\r\n',
-      'Starting the development server...\r\n',
-      '\x1b[36mCompiled successfully!\x1b[0m\r\n',
-      '\r\nYou can now view \x1b[1mtty.live\x1b[0m in the browser.\r\n',
-      '  Local:            http://localhost:3000\r\n',
-      '  On Your Network:  http://192.168.1.5:3000\r\n',
-      '\r\nNote that the development build is not optimized.\r\n',
-      '\x1b[33mGET /api/health\x1b[0m 200 45ms\r\n',
-      '\x1b[33mGET /api/sessions\x1b[0m 200 12ms\r\n',
-      'Watching for changes...\r\n',
-    ];
-
-    let i = 0;
-    const interval = setInterval(() => {
-      if (!activeSession) {
-        clearInterval(interval);
-        return;
-      }
-      socket.emit('terminal-data', { sessionId, data: lines[i % lines.length] });
-      i++;
-    }, 2000);
-  };
 
   const fetchStats = async () => {
     try {
