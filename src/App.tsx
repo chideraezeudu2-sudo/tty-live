@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || window.location.origin;
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://tty-live-worker.workers.dev';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ghpmcjozeubrmiuzyfey.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocG1jam96ZXVicm1pdXp5ZmV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MjYzMjYsImV4cCI6MjA5MzUwMjMyNn0.3UHkakDeyj6bDdDo5DcoiLWLMxCmdPc1KaZ7sZNSV6w';
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
