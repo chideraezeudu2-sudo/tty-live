@@ -48,9 +48,9 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { Terminal as XTerm } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
+import { Terminal as XTerm } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 
 // --- Types ---
 type Tab = 'home' | 'sessions' | 'settings' | 'billing' | 'viewers';
