@@ -31,16 +31,7 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const token = localStorage.getItem('tty_token');
   // Map API paths to Netlify function names
-  const pathMap: Record<string, string> = {
-    '/api/stats': '/.netlify/functions/stats',
-    '/api/sessions': '/.netlify/functions/sessions',
-    '/api/subscription': '/.netlify/functions/subscription',
-    '/api/billing/create-checkout': '/.netlify/functions/billing-checkout',
-    '/api/billing/portal': '/.netlify/functions/billing-portal',
-    '/api/stream/push': '/.netlify/functions/stream-push',
-    '/api/stream/rewind': '/.netlify/functions/stream-rewind',
-  };
-  const url = pathMap[path] || path;
+  const url = path;
   return fetch(url, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '', ...opts.headers },
@@ -433,7 +424,7 @@ export default function App() {
 
   const stopSession = () => {
     if (activeSession) {
-      apiFetch(`/.netlify/functions/session-update?id=${activeSession.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
+      apiFetch(`/api/sessions/${activeSession.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
       if (realtimeRef.current) { realtimeRef.current.unsubscribe(); realtimeRef.current = null; }
     }
   };

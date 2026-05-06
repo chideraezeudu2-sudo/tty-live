@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
+    "build": "npm install --include=dev && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "build:frontend": "vite build"
+    "build:frontend": "vite build",
+    "start": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
@@ -35,7 +36,8 @@
     "@types/node": "^22.14.0",
     "@types/express": "^4.17.21",
     "tsx": "latest",
-    "@netlify/functions": "^2.0.0"
+    "@netlify/functions": "^2.0.0",
+    "cors": "^2.8.5"
   },
   "devDependencies": {}
 }
