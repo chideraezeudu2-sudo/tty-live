@@ -17,7 +17,7 @@ class ErrorBoundary extends Component<{children: ReactNode}, {error: string | nu
   render() {
     if (this.state.error) {
       return (
-        <div style={{background:'#0a0a0a',color:'#ff6b6b',fontFamily:'monospace',padding:'2rem',minHeight:'100vh'}}>
+        <div style={{background:'#000000',color:'#ff6b6b',fontFamily:'monospace',padding:'2rem',minHeight:'100vh'}}>
           <h2 style={{color:'#fff',marginBottom:'1rem'}}>tty.live — startup error</h2>
           <pre style={{whiteSpace:'pre-wrap',fontSize:'13px'}}>{this.state.error}</pre>
           <p style={{color:'#888',marginTop:'1rem',fontSize:'12px'}}>Please screenshot this and send to support</p>
