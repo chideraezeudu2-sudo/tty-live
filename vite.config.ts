@@ -12,6 +12,5 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 2000,
     outDir: 'dist',
-    assetsDir: 'assets',
   },
 });
