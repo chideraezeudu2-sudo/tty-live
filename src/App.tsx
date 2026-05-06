@@ -387,9 +387,9 @@ export default function App() {
     }
 
     // Load data via REST API
-    apiFetch('/api/stats').then(r => r.json()).then(setStats).catch(console.error);
-    apiFetch('/api/sessions').then(r => r.json()).then(setSessions).catch(console.error);
-    apiFetch('/api/subscription').then(r => r.json()).then(setSub).catch(console.error);
+    apiFetch('/api/stats').then(r => r.json()).then(d => { if (d && typeof d.totalSessions === 'number') setStats(d); }).catch(console.error);
+    apiFetch('/api/sessions').then(r => r.json()).then(d => { if (Array.isArray(d)) setSessions(d); }).catch(console.error);
+    apiFetch('/api/subscription').then(r => r.json()).then(d => { if (d && d.plan) setSub(d); }).catch(console.error);
 
     return () => {
       if (realtimeRef.current) realtimeRef.current.unsubscribe();
@@ -548,7 +548,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {sessions.slice(0, 3).map((session) => (
+                  {(Array.isArray(sessions) ? sessions : []).slice(0, 3).map((session) => (
                     <div key={session.id} className="bg-void-black border border-white/5 p-4 rounded-xl flex items-center justify-between hover:border-white/10 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-lg ${session.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-white/5 text-ash-gray'}`}>
@@ -631,7 +631,7 @@ export default function App() {
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y divide-white/5">
-                  {sessions.map((session) => (
+                  {(Array.isArray(sessions) ? sessions : []).map((session) => (
                     <SessionRow key={session.id} session={session} />
                   ))}
                 </div>
